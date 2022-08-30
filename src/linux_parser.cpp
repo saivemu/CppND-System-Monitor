@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <filesystem>
 
 #include "linux_parser.h"
 
@@ -54,20 +55,16 @@ string LinuxParser::Kernel() {
 // BONUS: Update this to use std::filesystem
 vector<int> LinuxParser::Pids() {
   vector<int> pids;
-  DIR* directory = opendir(kProcDirectory.c_str());
-  struct dirent* file;
-  while ((file = readdir(directory)) != nullptr) {
-    // Is this a directory?
-    if (file->d_type == DT_DIR) {
-      // Is every character of the name a digit?
-      string filename(file->d_name);
-      if (std::all_of(filename.begin(), filename.end(), isdigit)) {
-        int pid = stoi(filename);
-        pids.push_back(pid);
+  // iterate through the directory to find folder with digit names
+  for (auto& dir_data : std::filesystem::directory_iterator(kProcDirectory)) {
+    if (dir_data.is_directory()) {
+      string dir_name = dir_data.path().filename();
+      if (std::all_of(dir_name.begin(),
+                      dir_name.end(), isdigit)) {
+        pids.push_back(std::stoi(dir_name));
       }
     }
   }
-  closedir(directory);
   return pids;
 }
 
@@ -164,8 +161,10 @@ vector<string> LinuxParser::CpuUtilization() {
       return cpu_utilization_times;
     }
   }
-  return {}; 
+  return {};
 }
+
+// Read and return CPU utilization for a process with pid
 
 // Read and return the total number of processes
 int LinuxParser::TotalProcesses() { 
@@ -256,6 +255,8 @@ string LinuxParser::User(int pid) {
 // Read and return the uptime of a process
 long LinuxParser::UpTime(int pid) { 
   string line;
+  // define default value to avoid compiler error during uptime calculation outside the loop
+  long starttime = 0;
   ifstream stream(kProcDirectory+to_string(pid)+kStatFilename);
   if (stream.is_open()){
     getline(stream, line);
@@ -266,7 +267,7 @@ long LinuxParser::UpTime(int pid) {
       linestream >> value;
     }
     linestream >> value;
-    long starttime = stol(value);
+    starttime = stol(value);
   }
   long uptime_this_pid = UpTime() - (starttime/sysconf(_SC_CLK_TCK));
   return uptime_this_pid;
