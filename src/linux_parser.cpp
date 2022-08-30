@@ -96,13 +96,15 @@ long LinuxParser::UpTime() {
     istringstream linestream(line);
     linestream >> uptime_str;
     uptime = stol(uptime_str);
+    return uptime;
   }
-  return uptime; 
+   return 0; // if stream is not open
 }
 
 // Read and return the number of jiffies for the system
 long LinuxParser::Jiffies() { 
-  return ActiveJiffies() + IdleJiffies(); 
+  // based on answer from https://knowledge.udacity.com/questions/129844
+  return UpTime() * sysconf(_SC_CLK_TCK); 
 }
 
 // Read and return the number of active jiffies for a PID
@@ -134,14 +136,17 @@ long LinuxParser::ActiveJiffies(int pid) {
 // Read and return the number of active jiffies for the system
 long LinuxParser::ActiveJiffies() { 
   vector<string> jiffies = CpuUtilization();
-  long active_jiffies = stol(jiffies[CPUStates::kUser_]) + stol(jiffies[CPUStates::kNice_]) + stol(jiffies[CPUStates::kSystem_]) + stol(jiffies[CPUStates::kIRQ_]) + stol(jiffies[CPUStates::kSoftIRQ_]) + stol(jiffies[CPUStates::kSteal_]);
+  // as described in the link https://stackoverflow.com/questions/23367857/accurate-calculation-of-cpu-usage-given-in-percentage-in-linux
+  long active_jiffies = stol(jiffies[CPUStates::kUser_]) + stol(jiffies[CPUStates::kNice_]) + stol(jiffies[CPUStates::kSystem_]) + stol(jiffies[CPUStates::kIRQ_]) + stol(jiffies[CPUStates::kSoftIRQ_]) + stol(jiffies[CPUStates::kSteal_]); // use enums to access the vector
   return active_jiffies; 
   }
 
-// TODO: Read and return the number of idle jiffies for the system
+// Read and return the number of idle jiffies for the system
 long LinuxParser::IdleJiffies() { 
   vector<string> jiffies = CpuUtilization();
-  long idle_jiffies = stol(jiffies[CPUStates::kIdle_]) + stol(jiffies[CPUStates::kIOwait_]);
+  // as described in https://stackoverflow.com/questions/23367857/accurate-calculation-of-cpu-usage-given-in-percentage-in-linux
+  // answer based on https://knowledge.udacity.com/questions/129844
+  long idle_jiffies = stol(jiffies[CPUStates::kIdle_]) + stol(jiffies[CPUStates::kIOwait_]); // use enum to get the index of the vector
   return idle_jiffies; 
   }
 
@@ -163,8 +168,6 @@ vector<string> LinuxParser::CpuUtilization() {
   }
   return {};
 }
-
-// Read and return CPU utilization for a process with pid
 
 // Read and return the total number of processes
 int LinuxParser::TotalProcesses() { 
@@ -218,8 +221,7 @@ string LinuxParser::Ram(int pid) {
   return to_string(stoi(mem_pid)/1000); 
   }
 
-// TODO: Read and return the user ID associated with a process
-// REMOVE: [[maybe_unused]] once you define the function
+// Read and return the user ID associated with a process
 string LinuxParser::Uid(int pid) { 
   string uid_pid;
   string key;
@@ -249,7 +251,7 @@ string LinuxParser::User(int pid) {
       }
     }
   }
-  return "DEFAULT_USER"; 
+  return "DEFAULT_USER"; // return default user if the stream is not open
   }
 
 // Read and return the uptime of a process
