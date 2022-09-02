@@ -281,6 +281,7 @@ long LinuxParser::UpTime(int pid) {
     }
     linestream >> value;
     starttime = stol(value);
+    stream.close();
   }
   long uptime_this_pid = UpTime() - (starttime/sysconf(_SC_CLK_TCK));
   return uptime_this_pid;
