@@ -2,6 +2,7 @@
 #define PROCESS_H
 
 #include <string>
+#include "linux_parser.h"
 
 using std::string;
 /*
