@@ -55,50 +55,57 @@ string LinuxParser::Kernel() {
 // BONUS: Update this to use std::filesystem
 vector<int> LinuxParser::Pids() {
   vector<int> pids;
-  // iterate through the directory to find folder with digit names
-  for (auto& dir_data : std::filesystem::directory_iterator(kProcDirectory)) {
-    if (dir_data.is_directory()) {
-      string dir_name = dir_data.path().filename();
-      if (std::all_of(dir_name.begin(),
-                      dir_name.end(), isdigit)) {
-        pids.push_back(std::stoi(dir_name));
+  DIR* directory = opendir(kProcDirectory.c_str());
+  struct dirent* file;
+  while ((file = readdir(directory)) != nullptr) {
+    // Is this a directory?
+    if (file->d_type == DT_DIR) {
+      // Is every character of the name a digit?
+      string filename(file->d_name);
+      if (std::all_of(filename.begin(), filename.end(), isdigit)) {
+        int pid = stoi(filename);
+        pids.push_back(pid);
       }
     }
   }
+  closedir(directory);
   return pids;
 }
 
 // Read and return the system memory utilization
 float LinuxParser::MemoryUtilization() { 
   string line, MemTotal, MemFree;
-  float memory_utilization;
+  float memory_utilization = 0.0;
   ifstream stream(kProcDirectory + kMeminfoFilename);
-  while(stream >> line){
-    if(line == "MemTotal:"){
-      stream >> MemTotal;
+  if (stream.is_open()){
+    while(stream >> line){
+      if(line == "MemTotal:"){
+        stream >> MemTotal;
+      }
+      if(line == "MemFree:"){
+        stream >> MemFree;
+        break;
+      }  
     }
-    if(line == "MemFree:"){
-      stream >> MemFree;
-      break;
-    }
-  }
   memory_utilization = (stof(MemTotal) - stof(MemFree))/stof(MemTotal);
+  stream.close();
+  }
   return memory_utilization;
 }
 
 // Read and return the system uptime
 long LinuxParser::UpTime() { 
   string line, uptime_str;
-  long uptime;
+  long uptime = 0;
   ifstream stream(kProcDirectory + kUptimeFilename);
   if(stream.is_open()){
     getline(stream, line);
     istringstream linestream(line);
     linestream >> uptime_str;
     uptime = stol(uptime_str);
-    return uptime;
+    stream.close();
   }
-   return 0; // if stream is not open
+   return uptime;
 }
 
 // Read and return the number of jiffies for the system
@@ -111,33 +118,34 @@ long LinuxParser::Jiffies() {
 long LinuxParser::ActiveJiffies(int pid) { 
   string line;
   ifstream stream(kProcDirectory+to_string(pid)+kStatFilename);
+  long utime = 0, stime = 0, cutime = 0, cstime = 0;
   if(stream.is_open()){
     getline(stream, line);
     istringstream linestream(line);
-    string value;
+    string temp;
+    string utime_str, stime_str, cutime_str, cstime_str;
     // skip the first 13 values
     for(int i=0; i<13; i++){
-      linestream >> value;
+      linestream >> temp;
     }
     // get the next 4 values and add them for the total time
-    linestream >> value;
-    long utime = stol(value);
-    linestream >> value;
-    long stime = stol(value);
-    linestream >> value;
-    long cutime = stol(value);
-    linestream >> value;
-    long cstime = stol(value);
-    return utime + stime + cutime + cstime;
+    linestream >> utime_str >> stime_str >> cutime_str >> cstime_str;
+    utime = stol(utime_str);
+    stime = stol(stime_str);
+    cutime = stol(cutime_str);
+    cstime = stol(cstime_str);
+    
+    stream.close();
   }
-  return 0; // return 0 if the stream is not open
+  return utime + stime + cutime + cstime; // return 0 if the stream is not open
 }
 
 // Read and return the number of active jiffies for the system
 long LinuxParser::ActiveJiffies() { 
   vector<string> jiffies = CpuUtilization();
   // as described in the link https://stackoverflow.com/questions/23367857/accurate-calculation-of-cpu-usage-given-in-percentage-in-linux
-  long active_jiffies = stol(jiffies[CPUStates::kUser_]) + stol(jiffies[CPUStates::kNice_]) + stol(jiffies[CPUStates::kSystem_]) + stol(jiffies[CPUStates::kIRQ_]) + stol(jiffies[CPUStates::kSoftIRQ_]) + stol(jiffies[CPUStates::kSteal_]); // use enums to access the vector
+  // use enums to access the vector
+  long active_jiffies = stol(jiffies[CPUStates::kUser_]) + stol(jiffies[CPUStates::kNice_]) + stol(jiffies[CPUStates::kSystem_]) + stol(jiffies[CPUStates::kIRQ_]) + stol(jiffies[CPUStates::kSoftIRQ_]) + stol(jiffies[CPUStates::kSteal_]); 
   return active_jiffies; 
   }
 
@@ -145,14 +153,14 @@ long LinuxParser::ActiveJiffies() {
 long LinuxParser::IdleJiffies() { 
   vector<string> jiffies = CpuUtilization();
   // as described in https://stackoverflow.com/questions/23367857/accurate-calculation-of-cpu-usage-given-in-percentage-in-linux
-  // answer based on https://knowledge.udacity.com/questions/129844
+  // answer also based on https://knowledge.udacity.com/questions/129844
   long idle_jiffies = stol(jiffies[CPUStates::kIdle_]) + stol(jiffies[CPUStates::kIOwait_]); // use enum to get the index of the vector
   return idle_jiffies; 
   }
 
 // Read and return CPU utilization
 vector<string> LinuxParser::CpuUtilization() { 
-  vector<string> cpu_utilization_times; 
+  vector<string> cpu_utilization_times {}; 
   string line, key, cpu_states;
   ifstream stream(kProcDirectory + kStatFilename);
   if(stream.is_open()){
@@ -163,22 +171,25 @@ vector<string> LinuxParser::CpuUtilization() {
       while(linestream >> cpu_states){
         cpu_utilization_times.push_back(cpu_states);
       }
-      return cpu_utilization_times;
     }
+    stream.close();
   }
-  return {};
+  return cpu_utilization_times;;
 }
 
 // Read and return the total number of processes
 int LinuxParser::TotalProcesses() { 
   string line;
-  int total_processes;
+  int total_processes = 0;
   ifstream stream(kProcDirectory + kStatFilename);
+  if(stream.is_open()){
   while(stream >> line){
     if(line == "processes"){
       stream >> total_processes;
       break;
     }
+  }
+    stream.close();
   }
   return total_processes;
   }
