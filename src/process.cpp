@@ -23,22 +23,22 @@ Process::Process(int pid){
 }
 
 // Return this process's ID
-int Process::Pid() const { return pid_; }
+int Process::Pid() const { return this->pid_; }
 
 // Return this process's CPU utilization
-float Process::CpuUtilization() const { return CpuUtilization_;}
+float Process::CpuUtilization() const { return this->CpuUtilization_;}
 
 // Return the command that generated this process
-string Process::Command() const { return command_; }
+string Process::Command() const { return this->command_; }
 
 // Return this process's memory utilization
-string Process::Ram() const { return ram_; }
+string Process::Ram() const { return this->ram_; }
 
 // Return the user (name) that generated this process
-string Process::User() const { return user_; }
+string Process::User() const { return this->user_; }
 
 // Return the age of this process (in seconds)
-long int Process::UpTime() const { return uptime_; }
+long int Process::UpTime() const { return this->uptime_; }
 
 // Overload the "less than" comparison operator for Process objects
 bool Process::operator<(Process const& a) const { return CpuUtilization() < a.CpuUtilization(); }
