@@ -12,30 +12,33 @@ using std::to_string;
 using std::vector;
 
 // Constructor for Process class implemented with initializer list
-Process::Process(int pid) : pid_(pid) {}
+Process::Process(int pid){
+    pid_ = pid;
+    user_ = LinuxParser::User(pid);
+    command_ = LinuxParser::Command(pid);
+    ram_ = LinuxParser::Ram(pid);
+    uptime_ = LinuxParser::UpTime(pid);
+    // Using the formula shared on https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat/16736599#16736599
+    CpuUtilization_ = (LinuxParser::ActiveJiffies(pid)/sysconf(_SC_CLK_TCK))/uptime_;
+}
 
 // Return this process's ID
 int Process::Pid() const { return pid_; }
 
 // Return this process's CPU utilization
-// Using the formula shared on https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat/16736599#16736599
-float Process::CpuUtilization() const { 
-  float total_time = LinuxParser::ActiveJiffies(Process::Pid());
-  float uptime_pid = LinuxParser::UpTime(Process::Pid());
-  return (total_time/sysconf(_SC_CLK_TCK))/uptime_pid;
-  }
+float Process::CpuUtilization() const { return CpuUtilization_;}
 
 // Return the command that generated this process
-string Process::Command() { return LinuxParser::Command(Process::Pid()); }
+string Process::Command() const { return command_; }
 
 // Return this process's memory utilization
-string Process::Ram() { return LinuxParser::Ram(Process::Pid()); }
+string Process::Ram() const { return ram_; }
 
 // Return the user (name) that generated this process
-string Process::User() { return LinuxParser::User(Process::Pid()); }
+string Process::User() const { return user_; }
 
 // Return the age of this process (in seconds)
-long int Process::UpTime() { return LinuxParser::UpTime(Process::Pid()); }
+long int Process::UpTime() const { return uptime_; }
 
 // Overload the "less than" comparison operator for Process objects
 bool Process::operator<(Process const& a) const { return CpuUtilization() < a.CpuUtilization(); }
