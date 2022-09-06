@@ -280,7 +280,8 @@ string LinuxParser::Uid(int pid) {
 // Read and return the user associated with a process
 string LinuxParser::User(int pid) { 
   string user_id = Uid(pid);
-  string line, user, x, uid;
+  string line, x, uid;
+  string user = "UNKNOWN";
   ifstream stream(kPasswordPath);
   if (stream.is_open()){
     while(getline(stream, line)){
@@ -297,7 +298,7 @@ string LinuxParser::User(int pid) {
     }
     stream.close();
   }
-  return "UNKNOWN"; // return default user if the stream is not open
+  return user; // return default user if the stream is not open
   }
 
 // Read and return the uptime of a process
