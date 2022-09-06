@@ -17,6 +17,7 @@ class System {
   int RunningProcesses();             
   std::string Kernel();               
   std::string OperatingSystem();      
+  Process CreateProcessObject(int pid);
 
   // Define any necessary private members
  private:
