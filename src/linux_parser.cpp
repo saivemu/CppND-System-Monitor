@@ -19,7 +19,7 @@ using std::getline;
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::OperatingSystem() {
   string line;
-  string key;
+  string token;
   string value;
   std::ifstream filestream(kOSPath);
   if (filestream.is_open()) {
@@ -28,8 +28,8 @@ string LinuxParser::OperatingSystem() {
       std::replace(line.begin(), line.end(), '=', ' ');
       std::replace(line.begin(), line.end(), '"', ' ');
       std::istringstream linestream(line);
-      while (linestream >> key >> value) {
-        if (key == "PRETTY_NAME") {
+      while (linestream >> token >> value) {
+        if (token == "PRETTY_NAME") {
           std::replace(value.begin(), value.end(), '_', ' ');
           return value;
         }
@@ -161,14 +161,14 @@ long LinuxParser::IdleJiffies() {
 
 // Read and return CPU utilization
 vector<string> LinuxParser::CpuUtilization() { 
-  vector<string> cpu_utilization_times {}; 
-  string line, key, cpu_states;
+  vector<string> cpu_utilization_times {};
+  string line, token, cpu_states;
   ifstream stream(kProcDirectory + kStatFilename);
   if(stream.is_open()){
     getline(stream, line);
     istringstream linestream(line);
-    linestream >> key;
-    if(key == "cpu"){
+    linestream >> token;
+    if(token == "cpu"){
       while(linestream >> cpu_states){
         cpu_utilization_times.push_back(cpu_states);
       }
@@ -223,14 +223,14 @@ string LinuxParser::Command(int pid) {
 string LinuxParser::Ram(int pid) { 
   string mem_pid;
   int ram = 0;
-  string key;
+  string token;
   ifstream stream(kProcDirectory+to_string(pid)+kStatusFilename);
   if (stream.is_open()){
-    while (stream >> key){
-      if(key == "VmSize:"){
+    while (stream >> token){
+      if(token == "VmSize:"){
         stream >> mem_pid;
         if (mem_pid!=""){
-          ram = stoi(mem_pid)/1000;
+          ram = stoi(mem_pid)/1024;
         }
         break;
       }
@@ -243,11 +243,11 @@ string LinuxParser::Ram(int pid) {
 // Read and return the user ID associated with a process
 string LinuxParser::Uid(int pid) { 
   string uid;
-  string key;
+  string token;
   ifstream stream(kProcDirectory+to_string(pid)+kStatusFilename);
   if (stream.is_open()){
-    while (stream >> key){
-      if(key == "Uid:"){
+    while (stream >> token){
+      if(token == "Uid:"){
         stream >> uid;
         break;
       }
@@ -299,6 +299,6 @@ long LinuxParser::UpTime(int pid) {
     starttime = stol(value);
     stream.close();
   }
-  long uptime_this_pid = UpTime() - (starttime/sysconf(_SC_CLK_TCK));
-  return uptime_this_pid;
+  long uptime_pid = UpTime() - (starttime/sysconf(_SC_CLK_TCK));
+  return uptime_pid;
   }
