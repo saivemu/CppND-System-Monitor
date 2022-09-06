@@ -230,7 +230,7 @@ int LinuxParser::RunningProcesses() {
 
 // Read and return the command associated with a process
 string LinuxParser::Command(int pid) { 
-  string command;
+  string command {};
   ifstream stream(kProcDirectory+to_string(pid)+kCmdlineFilename);  
   if(stream.is_open()){
     getline(stream, command);
