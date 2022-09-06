@@ -74,21 +74,27 @@ vector<int> LinuxParser::Pids() {
 
 // Read and return the system memory utilization
 float LinuxParser::MemoryUtilization() { 
-  string line, MemTotal, MemFree;
-  float memory_utilization = 0.0;
+  string line, MemTotalStr, MemFreeStr;
+  float memory_utilization = 0.0, mem_total = 0.0, mem_free = 0.0;
   ifstream stream(kProcDirectory + kMeminfoFilename);
   if (stream.is_open()){
     while(stream >> line){
       if(line == "MemTotal:"){
-        stream >> MemTotal;
+        stream >> MemTotalStr;
+        if (MemTotalStr != ""){
+          mem_total = stof(MemTotalStr);
+        }
       }
       if(line == "MemFree:"){
-        stream >> MemFree;
+        stream >> MemFreeStr;
+        if (MemFreeStr != ""){
+          mem_free = stof(MemFreeStr);
+        }
         break;
       }  
     }
-    if (MemTotal != "" && MemFree != "" && stof(MemTotal) != 0.0){
-      memory_utilization = (stof(MemTotal) - stof(MemFree)) / stof(MemTotal);
+    if (mem_total != 0.0){
+      memory_utilization = (mem_total - mem_free) / mem_total;
     }
   }
   return memory_utilization;
@@ -146,7 +152,15 @@ long LinuxParser::ActiveJiffies() {
   vector<string> jiffies = CpuUtilization();
   // as described in the link https://stackoverflow.com/questions/23367857/accurate-calculation-of-cpu-usage-given-in-percentage-in-linux
   // use enums to access the vector
-  long active_jiffies = stol(jiffies[CPUStates::kUser_]) + stol(jiffies[CPUStates::kNice_]) + stol(jiffies[CPUStates::kSystem_]) + stol(jiffies[CPUStates::kIRQ_]) + stol(jiffies[CPUStates::kSoftIRQ_]) + stol(jiffies[CPUStates::kSteal_]); 
+  long userJiffies = stol(jiffies[CPUStates::kUser_]);
+  long niceJiffies = stol(jiffies[CPUStates::kNice_]);
+  long systemJiffies = stol(jiffies[CPUStates::kSystem_]);
+  long irqJiffies = stol(jiffies[CPUStates::kIRQ_]);
+  long softirqJiffies = stol(jiffies[CPUStates::kSoftIRQ_]);
+  long stealJiffies = stol(jiffies[CPUStates::kSteal_]);
+
+  long active_jiffies = userJiffies + niceJiffies + systemJiffies + irqJiffies + softirqJiffies + stealJiffies; 
+
   return active_jiffies; 
   }
 
@@ -155,8 +169,10 @@ long LinuxParser::IdleJiffies() {
   vector<string> jiffies = CpuUtilization();
   // as described in https://stackoverflow.com/questions/23367857/accurate-calculation-of-cpu-usage-given-in-percentage-in-linux
   // answer also based on https://knowledge.udacity.com/questions/129844
-  long idle_jiffies = stol(jiffies[CPUStates::kIdle_]) + stol(jiffies[CPUStates::kIOwait_]); // use enum to get the index of the vector
-  return idle_jiffies; 
+  long idleJiffies = stol(jiffies[CPUStates::kIdle_]);
+  long iowaitJiffies = stol(jiffies[CPUStates::kIOwait_]);
+
+  return idleJiffies+iowaitJiffies;
   }
 
 // Read and return CPU utilization
@@ -198,13 +214,16 @@ int LinuxParser::TotalProcesses() {
 // Read and return the number of running processes
 int LinuxParser::RunningProcesses() { 
   string line;
-  int running_processes;
+  int running_processes = 0;
   ifstream stream(kProcDirectory + kStatFilename);
-  while(stream >> line){
-    if(line == "procs_running"){
-      stream >> running_processes;
-      break;
+  if(stream.is_open()){
+    while(stream >> line){
+      if(line == "procs_running"){
+        stream >> running_processes;
+        break;
+      }
     }
+    stream.close();
   }
   return running_processes; 
   }
@@ -215,6 +234,7 @@ string LinuxParser::Command(int pid) {
   ifstream stream(kProcDirectory+to_string(pid)+kCmdlineFilename);  
   if(stream.is_open()){
     getline(stream, command);
+    stream.close();
   }
   return command; 
   }
