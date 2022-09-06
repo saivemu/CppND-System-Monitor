@@ -87,8 +87,9 @@ float LinuxParser::MemoryUtilization() {
         break;
       }  
     }
-  memory_utilization = (stof(MemTotal) - stof(MemFree))/stof(MemTotal);
-  stream.close();
+    if (MemTotal != "" && MemFree != "" && stof(MemTotal) != 0.0){
+      memory_utilization = (stof(MemTotal) - stof(MemFree)) / stof(MemTotal);
+    }
   }
   return memory_utilization;
 }
@@ -221,34 +222,44 @@ string LinuxParser::Command(int pid) {
 // Read and return the memory used by a process
 string LinuxParser::Ram(int pid) { 
   string mem_pid;
+  int ram = 0;
   string key;
   ifstream stream(kProcDirectory+to_string(pid)+kStatusFilename);
-  while (stream >> key){
-    if(key == "VmSize:"){
-      stream >> mem_pid;
-      break;
+  if (stream.is_open()){
+    while (stream >> key){
+      if(key == "VmSize:"){
+        stream >> mem_pid;
+        if (mem_pid!=""){
+          ram = stoi(mem_pid)/1000;
+        }
+        break;
+      }
     }
+    stream.close();
   }
-  return to_string(stoi(mem_pid)/1000); 
+  return to_string(ram);
   }
 
 // Read and return the user ID associated with a process
 string LinuxParser::Uid(int pid) { 
-  string uid_pid;
+  string uid;
   string key;
   ifstream stream(kProcDirectory+to_string(pid)+kStatusFilename);
-  while(stream >> key){
-    if(key == "Uid:"){
-      stream >> uid_pid;
-      break;
+  if (stream.is_open()){
+    while (stream >> key){
+      if(key == "Uid:"){
+        stream >> uid;
+        break;
+      }
     }
+    stream.close();
   }
-  return uid_pid; 
+  return uid; 
   }
 
 // Read and return the user associated with a process
 string LinuxParser::User(int pid) { 
-  string uid_this_pid = Uid(pid);
+  string user_id = Uid(pid);
   string line, user, x, uid;
   ifstream stream(kPasswordPath);
   if (stream.is_open()){
@@ -256,13 +267,17 @@ string LinuxParser::User(int pid) {
       // replace : with space for easier parsing
       std::replace(line.begin(), line.end(), ':', ' ');
       istringstream linestream(line);
-      linestream >> user >> x >> uid;
-      if(uid == uid_this_pid){
+      // get the user, x and uid tokens from the line
+      linestream >> user;
+      linestream >> x;
+      linestream >> uid;
+      if(uid == user_id){
         return user;
       }
     }
+    stream.close();
   }
-  return "DEFAULT_USER"; // return default user if the stream is not open
+  return "UNKNOWN"; // return default user if the stream is not open
   }
 
 // Read and return the uptime of a process
@@ -275,7 +290,8 @@ long LinuxParser::UpTime(int pid) {
     getline(stream, line);
     istringstream linestream(line);
     string value;
-    // skip the first 20 values
+    // skip the first 21 values
+    // based on formula stated in the course
     for(int i=0; i<21; i++){
       linestream >> value;
     }

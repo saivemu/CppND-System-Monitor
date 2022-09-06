@@ -23,11 +23,14 @@ Processor& System::Cpu() { return cpu_; }
 
 // Return a container composed of the system's processes
 vector<Process>& System::Processes() { 
-    vector<int> pids = LinuxParser::Pids();
-    vector<Process> processes = {}; 
-    for (long unsigned int i = 0; i < pids.size(); i++) {
-        Process process(pids[i]);
-        processes.push_back(process);
+    vector<int> pid_list = LinuxParser::Pids();
+    vector<Process> processes;
+    // initializaing the processes vector with the number of processes in the pid_list
+    processes.reserve(pid_list.size()); 
+    // loop through list of pids and create a process object for each pid
+    for (long unsigned int i = 0; i < pid_list.size(); i++) {
+        Process process(pid_list[i]);
+        processes.emplace_back(process);
     }
     // sort processes by cpu utilization as override operator defined in process class 
     // knowledge question answer explains default sort operator https://knowledge.udacity.com/questions/805319
